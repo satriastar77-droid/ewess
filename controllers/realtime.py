@@ -35,57 +35,13 @@ def post_realtime():
             return jsonify({"error": "Sensor not registered"}), 400
 
         event_active = state["event_active"]
-        current_event_id = state["current_event_id"]
+        active_event_id = state["current_event_id"]
 
-        # ================= START / CONTINUE EVENT =================
-       # ================= START / CONTINUE EVENT =================
-        if intensity >= THRESHOLD:
-
-            if not event_active:
-                # ===== START EVENT =====
-                cursor.execute("""
-                    INSERT INTO quake_logs
-                    (sensor_id, start_time, end_time, duration_sec, max_intensity, avg_intensity)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                """, (
-                    sensor_id,
-                    now,
-                    now,
-                    0,
-                    intensity,
-                    intensity
-                ))
-
-                event_id = cursor.lastrowid  # ← INI SUMBER KEBENARAN
-
-                cursor.execute("""
-                    UPDATE realtime_status
-                    SET event_active = 1,
-                        event_start_time = %s,
-                        current_event_id = %s,
-                        max_intensity = %s,
-                        sum_intensity = %s,
-                        sample_count = 1,
-                        last_below_threshold = NULL
-                    WHERE sensor_id = %s
-                """, (now, event_id, intensity, intensity, sensor_id))
-
-                active_event_id = event_id
-
-            else:
-                # ===== EVENT CONTINUES =====
-                active_event_id = state["current_event_id"]
-
-                cursor.execute("""
-                    UPDATE realtime_status
-                    SET max_intensity = GREATEST(max_intensity, %s),
-                        sum_intensity = sum_intensity + %s,
-                        sample_count = sample_count + 1,
-                        last_below_threshold = NULL
-                    WHERE sensor_id = %s
-                """, (intensity, intensity, sensor_id))
-
-            # ===== INSERT EVENT SAMPLE =====
+        # ==================================================
+        # EVENT ACTIVE
+        # ==================================================
+        if event_active:
+            # --- SIMPAN SEMUA SAMPLE ---
             cursor.execute("""
                 INSERT INTO quake_event_samples
                 (event_id, sensor_id, intensity, recorded_at)
@@ -97,10 +53,17 @@ def post_realtime():
                 now
             ))
 
+            # --- UPDATE AGREGAT ---
+            cursor.execute("""
+                UPDATE realtime_status
+                SET max_intensity = GREATEST(max_intensity, %s),
+                    sum_intensity = sum_intensity + %s,
+                    sample_count = sample_count + 1
+                WHERE sensor_id = %s
+            """, (intensity, intensity, sensor_id))
 
-       # ================= BELOW THRESHOLD =================
-        else:
-            if event_active:
+            # --- CEK END EVENT ---
+            if intensity < THRESHOLD:
                 if state["last_below_threshold"] is None:
                     cursor.execute("""
                         UPDATE realtime_status
@@ -109,10 +72,11 @@ def post_realtime():
                     """, (now, sensor_id))
                 else:
                     quiet = (now - state["last_below_threshold"]).total_seconds()
-
                     if quiet >= QUIET_SECONDS:
                         duration_sec = (now - state["event_start_time"]).total_seconds()
-                        avg_intensity = state["sum_intensity"] / max(state["sample_count"], 1)
+                        avg_intensity = (
+                            state["sum_intensity"] / max(state["sample_count"], 1)
+                        )
 
                         cursor.execute("""
                             UPDATE quake_logs
@@ -126,7 +90,7 @@ def post_realtime():
                             duration_sec,
                             state["max_intensity"],
                             avg_intensity,
-                            state["current_event_id"]
+                            active_event_id
                         ))
 
                         cursor.execute("""
@@ -141,8 +105,51 @@ def post_realtime():
                             WHERE sensor_id = %s
                         """, (sensor_id,))
 
+        # ==================================================
+        # START EVENT
+        # ==================================================
+        elif intensity >= THRESHOLD:
+            cursor.execute("""
+                INSERT INTO quake_logs
+                (sensor_id, start_time, end_time, duration_sec, max_intensity, avg_intensity)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (
+                sensor_id,
+                now,
+                now,
+                0,
+                intensity,
+                intensity
+            ))
 
-        # ================= REALTIME SNAPSHOT =================
+            active_event_id = cursor.lastrowid
+
+            cursor.execute("""
+                UPDATE realtime_status
+                SET event_active = 1,
+                    event_start_time = %s,
+                    current_event_id = %s,
+                    max_intensity = %s,
+                    sum_intensity = %s,
+                    sample_count = 1,
+                    last_below_threshold = NULL
+                WHERE sensor_id = %s
+            """, (now, active_event_id, intensity, intensity, sensor_id))
+
+            cursor.execute("""
+                INSERT INTO quake_event_samples
+                (event_id, sensor_id, intensity, recorded_at)
+                VALUES (%s, %s, %s, %s)
+            """, (
+                active_event_id,
+                sensor_id,
+                intensity,
+                now
+            ))
+
+        # ==================================================
+        # REALTIME SNAPSHOT
+        # ==================================================
         cursor.execute("""
             UPDATE realtime_status
             SET shake = %s,
@@ -163,11 +170,8 @@ def post_realtime():
             "intensity": intensity,
             "duration": duration,
             "timestamp": now.isoformat(),
-            "event_active": bool(
-                intensity >= THRESHOLD or state["event_active"]),
-            "current_event_id": (
-                active_event_id if intensity >= THRESHOLD else None
-                )
+            "event_active": bool(event_active or intensity >= THRESHOLD),
+            "current_event_id": active_event_id
         }), 200
 
     except Exception as e:

@@ -51,39 +51,11 @@
             <p class="mb-2">Intensity:
                 <span id="intensity" class="font-bold text-green-300">0</span>
             </p>
-
-            <p class="mb-2">Duration:
-                <span id="duration" class="font-bold text-yellow-300">0</span> sec
-            </p>
-
-            <p class="text-sm">Updated:
-                <span id="timestamp" class="text-gray-300">-</span>
-            </p>
         </div>
-
-
-        <!-- STATISTIK CARD -->
-        <div class="card col-span-1">
-            <h2 class="text-xl font-semibold mb-4">Statistik Intensitas (24 Jam)</h2>
-
-            <p>Average:
-                <span id="avgIntensity" class="font-bold text-blue-400">0</span>
-            </p>
-
-            <p>Minimum:
-                <span id="minIntensity" class="font-bold text-green-400">0</span>
-            </p>
-
-            <p>Maximum:
-                <span id="maxIntensity" class="font-bold text-red-400">0</span>
-            </p>
-        </div>
-
-
 
         <!-- SENSOR REALTIME CHART -->
         <div class="card col-span-1 md:col-span-3">
-            <h2 class="text-xl font-semibold mb-4">Realtime Intensity (per second)</h2>
+            <h2 class="text-xl font-semibold mb-4">Realtime Intensity</h2>
             <canvas id="sensorChart"></canvas>
         </div>
 
@@ -94,8 +66,6 @@
             </h2>
             <canvas id="eventHistoryChart"></canvas>
         </div>
-
-
     </div>
 
 
@@ -137,10 +107,38 @@
         ================================ */
         function formatTime(ts) {
             if (!ts) return "-";
-            const d = new Date(ts.replace("T", "") + "+07.00"); // WIB timezone);
-            return d.toLocaleTimeString("id-ID", { hour12: false }) + " • " +
-                d.toLocaleDateString("id-ID");
+
+            // parsing sebagai local time
+            const [date, time] = ts.split("T");
+            const [y, m, d] = date.split("-").map(Number);
+            const [hh, mm, ss] = time.split(":").map(Number);
+
+            const localDate = new Date(y, m - 1, d, hh, mm, ss);
+
+            return localDate.toLocaleTimeString("id-ID", {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit"
+            }) + " • " + localDate.toLocaleDateString("id-ID");
         }
+        function parseLocalDate(ts) {
+            if (!ts || typeof ts !== "string") return null;
+
+            // buang timezone & microseconds (AMAN untuk Chart.js)
+            const clean = ts.replace("Z", "").split(".")[0];
+
+            const [date, time] = clean.split("T");
+            if (!date || !time) return null;
+
+            const [y, m, d] = date.split("-").map(Number);
+            const [hh, mm, ss] = time.split(":").map(Number);
+
+            const result = new Date(y, m - 1, d, hh, mm, ss);
+            return isNaN(result.getTime()) ? null : result;
+        }
+
+
+
 
         /* ===============================
            CHART: REALTIME SENSOR
@@ -195,42 +193,59 @@
            FETCH REALTIME
         ================================ */
         async function fetchRealtime() {
-            const res = await fetch(realtimeURL);
-            if (!res.ok) return;
+            console.log("FETCH REALTIME CALLED");
+            try {
+                const res = await fetch(realtimeURL);
+                if (!res.ok) return;
 
-            const data = await res.json();
+                const data = await res.json();
 
-            document.getElementById("shakeStatus").textContent =
-                data.shake ? "YES" : "NO";
-            document.getElementById("intensity").textContent = data.intensity ?? 0;
-            document.getElementById("duration").textContent = data.duration ?? 0;
-            document.getElementById("timestamp").textContent =
-                formatTime(data.timestamp);
+                // ===== TEXT STATUS =====
+                document.getElementById("eventStatus").textContent =
+                    data.event_active ? "ACTIVE" : "IDLE";
 
-            const eventStatus = document.getElementById("eventStatus");
-            const card = document.getElementById("realtimeCard");
+                document.getElementById("shakeStatus").textContent =
+                    data.shake ? "YES" : "NO";
 
-            if (data.event_active) {
-                eventStatus.textContent = "ACTIVE";
-                eventStatus.className = "font-bold text-red-400";
-                card.classList.add("ring", "ring-red-500");
-            } else {
-                eventStatus.textContent = "IDLE";
-                eventStatus.className = "font-bold text-green-400";
-                card.classList.remove("ring", "ring-red-500");
+                document.getElementById("intensity").textContent =
+                    data.intensity ?? 0;
+
+                const eventStatus = document.getElementById("eventStatus");
+                const card = document.getElementById("realtimeCard");
+
+                if (data.event_active) {
+                    eventStatus.textContent = "ACTIVE";
+                    eventStatus.className = "font-bold text-red-400";
+                    card.classList.add("ring", "ring-red-500");
+                } else {
+                    eventStatus.textContent = "IDLE";
+                    eventStatus.className = "font-bold text-green-400";
+                    card.classList.remove("ring", "ring-red-500");
+                }
+
+                // ===== CHART DATA =====
+                const xDate = parseLocalDate(data.timestamp);
+                console.log("PARSED DATE:", xDate, "INT:", data.intensity);
+
+                if (xDate) {
+                    sensorChart.data.datasets[0].data.push({
+                        x: xDate,
+                        y: Number(data.intensity) || 0
+                    });
+
+                    // limit data (sliding window)
+                    if (sensorChart.data.datasets[0].data.length > 10) {
+                        sensorChart.data.datasets[0].data.shift();
+                    }
+
+                    sensorChart.update("none"); // no animation (realtime)
+                }
+
+            } catch (err) {
+                console.error("fetchRealtime error:", err);
             }
-
-            sensorChart.data.datasets[0].data.push({
-                x: data.timestamp,
-                y: data.intensity
-            });
-
-            if (sensorChart.data.datasets[0].data.length > 20) {
-                sensorChart.data.datasets[0].data.shift();
-            }
-
-            sensorChart.update();
         }
+
 
         /* ===============================
            FETCH LOGS (TABLE)
@@ -307,7 +322,7 @@
 
             eventHistoryChart.data.datasets[0].data =
                 json.samples.map(s => ({
-                    x: new Date(s.recorded_at),
+                    x: parseLocalDate(s.recorded_at),
                     y: s.intensity
                 }));
 
@@ -315,19 +330,6 @@
                 `Event #${eventId} Intensity`;
 
             eventHistoryChart.update();
-        }
-
-        /* ===============================
-           FETCH STATS
-        ================================ */
-        async function fetchStats() {
-            const res = await fetch(statsURL);
-            if (!res.ok) return;
-
-            const data = await res.json();
-            document.getElementById("avgIntensity").textContent = data.average;
-            document.getElementById("minIntensity").textContent = data.minimum;
-            document.getElementById("maxIntensity").textContent = data.maximum;
         }
 
         /* ===============================

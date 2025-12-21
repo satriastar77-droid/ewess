@@ -1,7 +1,18 @@
 from flask import Blueprint, jsonify
 from db import get_db
+from datetime import datetime
 
 logs_api = Blueprint("logs_api", __name__)
+
+# ===============================
+# HELPER: SAFE DATETIME SERIALIZER
+# ===============================
+def serialize_dt(dt):
+    if dt is None:
+        return None
+    if isinstance(dt, datetime):
+        return dt.strftime("%Y-%m-%dT%H:%M:%S")
+    return dt.replace(" ", "T")
 
 @logs_api.route("/api/logs", methods=["GET"])
 def get_logs():
@@ -33,8 +44,8 @@ def get_logs():
             {
                 "event_id": r["event_id"],
                 "sensor_id": r["sensor_id"],
-                "start_time": r["start_time"],
-                "end_time": r["end_time"],
+                "start_time": serialize_dt(r["start_time"]),
+                "end_time": serialize_dt(r["end_time"]),
                 "duration_sec": r["duration_sec"],
                 "max_intensity": r["max_intensity"],
                 "avg_intensity": r["avg_intensity"]
