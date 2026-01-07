@@ -302,6 +302,160 @@
             background: rgba(99, 102, 241, 0.7);
         }
 
+        /* Notification Bell */
+        .notification-bell {
+            position: relative;
+            cursor: pointer;
+            padding: 12px;
+            border-radius: 12px;
+            background: linear-gradient(145deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95));
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .notification-bell:hover {
+            transform: translateY(-2px);
+            border-color: rgba(99, 102, 241, 0.5);
+            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.2);
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 700;
+            animation: badgePulse 2s ease-in-out infinite;
+        }
+
+        @keyframes badgePulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+            }
+        }
+
+        /* Notification Page */
+        .notification-page {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #0f1419 100%);
+            z-index: 100;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .notification-page.active {
+            display: block;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .notification-item {
+            background: linear-gradient(145deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95));
+            border-radius: 12px;
+            padding: 16px;
+            border-left: 4px solid;
+            margin-bottom: 12px;
+            transition: all 0.3s ease;
+            animation: notifSlideIn 0.3s ease-out;
+        }
+
+        @keyframes notifSlideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .notification-item:hover {
+            transform: translateX(4px);
+            box-shadow: 0 4px 16px rgba(99, 102, 241, 0.2);
+        }
+
+        .notification-item.critical {
+            border-left-color: #ef4444;
+            background: linear-gradient(145deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.05));
+        }
+
+        .notification-item.warning {
+            border-left-color: #f59e0b;
+            background: linear-gradient(145deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.05));
+        }
+
+        .notification-item.info {
+            border-left-color: #3b82f6;
+            background: linear-gradient(145deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.05));
+        }
+
+        /* Alert Toast */
+        .alert-toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(239, 68, 68, 0.4);
+            z-index: 1000;
+            display: none;
+            animation: toastSlideIn 0.3s ease-out;
+            max-width: 400px;
+        }
+
+        .alert-toast.show {
+            display: block;
+        }
+
+        @keyframes toastSlideIn {
+            from {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .alert-toast.shake {
+            animation: toastShake 0.5s ease-in-out;
+        }
+
+        @keyframes toastShake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
         @media (max-width: 768px) {
             .card {
                 padding: 16px;
@@ -314,16 +468,73 @@
             .chart-container {
                 height: 250px;
             }
+
+            .alert-toast {
+                left: 20px;
+                right: 20px;
+                max-width: none;
+            }
         }
     </style>
 </head>
 
 <body>
-    <div class="container p-6 md:p-8 max-w-7xl mx-auto">
+    <!-- Alert Toast -->
+    <div id="alertToast" class="alert-toast">
+        <div class="flex items-start gap-3">
+            <svg class="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>
+            <div>
+                <div class="font-bold text-lg mb-1">⚠️ EARTHQUAKE DETECTED!</div>
+                <div id="alertMessage" class="text-sm opacity-90"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Page -->
+    <div id="notificationPage" class="notification-page scrollbar-custom">
+        <div class="container p-6 md:p-8 max-w-5xl mx-auto">
+            <div class="flex items-center justify-between mb-8">
+                <div>
+                    <h1 class="text-4xl font-bold mb-2 header-glow">Notifications</h1>
+                    <p class="text-gray-400 text-sm">Event alerts and system notifications</p>
+                </div>
+                <button id="backButton" class="btn-primary">
+                    ← Back to Dashboard
+                </button>
+            </div>
+
+            <div class="card mb-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="section-title mb-0">Recent Alerts</h2>
+                    <button id="clearNotifications" class="text-red-400 text-sm hover:text-red-300 transition-colors">
+                        Clear All
+                    </button>
+                </div>
+                <div id="notificationsList">
+                    <div class="text-center py-8 text-gray-500">
+                        No notifications yet
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Dashboard -->
+    <div id="mainDashboard" class="container p-6 md:p-8 max-w-7xl mx-auto">
         <!-- HEADER -->
-        <div class="mb-8">
-            <h1 class="text-4xl md:text-5xl font-bold mb-2 header-glow">EWESS Monitoring</h1>
-            <p class="text-gray-400 text-sm">Early Warning Earthquake Sensing System</p>
+        <div class="mb-8 flex items-center justify-between">
+            <div>
+                <h1 class="text-4xl md:text-5xl font-bold mb-2 header-glow">EWESS Monitoring</h1>
+                <p class="text-gray-400 text-sm">Early Warning Earthquake Sensing System</p>
+            </div>
+            <div class="notification-bell" id="notificationBell">
+                <svg class="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                </svg>
+                <span id="notificationBadge" class="notification-badge" style="display: none;">0</span>
+            </div>
         </div>
 
         <!-- GRID LAYOUT -->
@@ -420,6 +631,140 @@
         const statsURL = "/api/stats";
 
         let viewingEvent = false;
+        let notifications = [];
+        let lastEventStatus = false;
+        let isAlertActive = false;
+        let alertInterval = null;
+
+        /* ===============================
+           NOTIFICATION SYSTEM
+        ================================ */
+        function addNotification(type, message, intensity) {
+            const notification = {
+                id: Date.now(),
+                type: type,
+                message: message,
+                intensity: intensity,
+                timestamp: new Date().toISOString(),
+                read: false
+            };
+
+            notifications.unshift(notification);
+            updateNotificationBadge();
+            saveNotifications();
+            renderNotifications();
+        }
+
+        function updateNotificationBadge() {
+            const unreadCount = notifications.filter(n => !n.read).length;
+            const badge = document.getElementById("notificationBadge");
+            
+            if (unreadCount > 0) {
+                badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+                badge.style.display = 'flex';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        function saveNotifications() {
+            try {
+                localStorage.setItem('ewess_notifications', JSON.stringify(notifications));
+            } catch (e) {
+                console.error('Failed to save notifications:', e);
+            }
+        }
+
+        function loadNotifications() {
+            try {
+                const saved = localStorage.getItem('ewess_notifications');
+                if (saved) {
+                    notifications = JSON.parse(saved);
+                    updateNotificationBadge();
+                }
+            } catch (e) {
+                console.error('Failed to load notifications:', e);
+            }
+        }
+
+        function renderNotifications() {
+            const container = document.getElementById('notificationsList');
+            
+            if (notifications.length === 0) {
+                container.innerHTML = '<div class="text-center py-8 text-gray-500">No notifications yet</div>';
+                return;
+            }
+
+            container.innerHTML = notifications.map(notif => {
+                const typeClass = notif.type === 'critical' ? 'critical' : 
+                                 notif.type === 'warning' ? 'warning' : 'info';
+                const icon = notif.type === 'critical' ? '🚨' : 
+                            notif.type === 'warning' ? '⚠️' : 'ℹ️';
+                
+                return `
+                    <div class="notification-item ${typeClass}">
+                        <div class="flex items-start gap-3">
+                            <div class="text-2xl">${icon}</div>
+                            <div class="flex-1">
+                                <div class="font-semibold mb-1">${notif.message}</div>
+                                <div class="text-sm text-gray-400">
+                                    Intensity: <span class="font-bold text-red-400">${notif.intensity}</span>
+                                </div>
+                                <div class="text-xs text-gray-500 mt-2">
+                                    ${formatTime(notif.timestamp)}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function showAlertToast(intensity) {
+            const toast = document.getElementById('alertToast');
+            const message = document.getElementById('alertMessage');
+            
+            message.textContent = `Seismic activity detected! Current intensity: ${intensity}`;
+            
+            toast.classList.add('show');
+            toast.classList.add('shake');
+            
+            // Play sound if available
+            try {
+                const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBCZ9zvLTgjAHHW7A7+OZUQ4=');
+                audio.play().catch(() => {});
+            } catch (e) {}
+            
+            setTimeout(() => {
+                toast.classList.remove('shake');
+            }, 500);
+        }
+
+        function startAlertSpam() {
+            if (isAlertActive) return;
+            
+            isAlertActive = true;
+            showAlertToast(document.getElementById('intensity').textContent);
+            
+            alertInterval = setInterval(() => {
+                if (lastEventStatus) {
+                    showAlertToast(document.getElementById('intensity').textContent);
+                } else {
+                    stopAlertSpam();
+                }
+            }, 3000);
+        }
+
+        function stopAlertSpam() {
+            isAlertActive = false;
+            if (alertInterval) {
+                clearInterval(alertInterval);
+                alertInterval = null;
+            }
+            
+            const toast = document.getElementById('alertToast');
+            toast.classList.remove('show');
+        }
 
         /* ===============================
            UTIL
@@ -427,7 +772,6 @@
         function formatTime(ts) {
             if (!ts) return "-";
 
-            // parsing sebagai local time
             const [date, time] = ts.split("T");
             const [y, m, d] = date.split("-").map(Number);
             const [hh, mm, ss] = time.split(":").map(Number);
@@ -444,9 +788,7 @@
         function parseLocalDate(ts) {
             if (!ts || typeof ts !== "string") return null;
 
-            // buang timezone & microseconds (AMAN untuk Chart.js)
             const clean = ts.replace("Z", "").split(".")[0];
-
             const [date, time] = clean.split("T");
             if (!date || !time) return null;
 
@@ -617,6 +959,22 @@
 
                 const data = await res.json();
 
+                // ===== STATUS CHANGE DETECTION =====
+                const currentStatus = data.event_active;
+                const currentIntensity = data.intensity ?? 0;
+
+                if (currentStatus && !lastEventStatus) {
+                    // Status berubah dari IDLE ke ACTIVE
+                    addNotification('critical', 'Earthquake Event Started!', currentIntensity);
+                    startAlertSpam();
+                } else if (!currentStatus && lastEventStatus) {
+                    // Status berubah dari ACTIVE ke IDLE
+                    addNotification('info', 'Earthquake Event Ended', currentIntensity);
+                    stopAlertSpam();
+                }
+
+                lastEventStatus = currentStatus;
+
                 // ===== TEXT STATUS =====
                 const eventStatusBadge = document.getElementById("eventStatusBadge");
                 const eventStatus = document.getElementById("eventStatus");
@@ -636,11 +994,11 @@
                 }
 
                 document.getElementById("shakeStatus").textContent = data.shake ? "YES" : "NO";
-                document.getElementById("intensity").textContent = data.intensity ?? 0;
+                document.getElementById("intensity").textContent = currentIntensity;
 
                 // Update intensity bar
                 const intensityBar = document.getElementById("intensityBar");
-                const intensityPercent = Math.min((data.intensity / 100) * 100, 100);
+                const intensityPercent = Math.min((currentIntensity / 100) * 100, 100);
                 intensityBar.style.width = intensityPercent + "%";
 
                 // ===== CHART DATA =====
@@ -649,15 +1007,14 @@
                 if (xDate) {
                     sensorChart.data.datasets[0].data.push({
                         x: xDate,
-                        y: Number(data.intensity) || 0
+                        y: Number(currentIntensity) || 0
                     });
 
-                    // limit data (sliding window)
                     if (sensorChart.data.datasets[0].data.length > 10) {
                         sensorChart.data.datasets[0].data.shift();
                     }
 
-                    sensorChart.update("none"); // no animation (realtime)
+                    sensorChart.update("none");
                 }
 
             } catch (err) {
@@ -757,8 +1114,33 @@
         }
 
         /* ===============================
-           CLEAR EVENT VIEW
+           NAVIGATION
         ================================ */
+        document.getElementById("notificationBell").onclick = () => {
+            document.getElementById("mainDashboard").style.display = "none";
+            document.getElementById("notificationPage").classList.add("active");
+            
+            // Mark all as read
+            notifications.forEach(n => n.read = true);
+            updateNotificationBadge();
+            saveNotifications();
+            renderNotifications();
+        };
+
+        document.getElementById("backButton").onclick = () => {
+            document.getElementById("notificationPage").classList.remove("active");
+            document.getElementById("mainDashboard").style.display = "block";
+        };
+
+        document.getElementById("clearNotifications").onclick = () => {
+            if (confirm("Clear all notifications?")) {
+                notifications = [];
+                updateNotificationBadge();
+                saveNotifications();
+                renderNotifications();
+            }
+        };
+
         document.getElementById("clearEventBtn").onclick = () => {
             viewingEvent = false;
             eventHistoryChart.data.datasets[0].data = [];
@@ -784,6 +1166,8 @@
         /* ===============================
            INITIAL LOAD
         ================================ */
+        loadNotifications();
+        renderNotifications();
         fetchRealtime();
         fetchLogs();
         fetchStats();
