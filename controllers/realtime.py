@@ -4,8 +4,8 @@ from datetime import datetime
 
 realtime_api = Blueprint("realtime_api", __name__)
 
-THRESHOLD = 40
-QUIET_SECONDS = 3
+THRESHOLD = 8
+QUIET_SECONDS = 4
 
 
 # ======================================================
