@@ -1,4 +1,5 @@
 # EWESS
+Early Warning Emergency Safety Sistem.
 
 Your Earthquake reminder for us.
 
